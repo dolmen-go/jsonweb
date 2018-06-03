@@ -266,7 +266,7 @@ func (ex arrExtractor) Parse(parent *Context, ptr jsonptr.Pointer, doc interface
 		ptr.Grow(1)
 		for i, v := range doc {
 			ptr.Index(i)
-			if err := ex.Parse(parent, ptr, v, visit); err != nil {
+			if err := ex.extractor.Parse(parent, ptr, v, visit); err != nil {
 				return err
 			}
 			ptr.Pop()
@@ -279,7 +279,7 @@ func (ex arrExtractor) Parse(parent *Context, ptr jsonptr.Pointer, doc interface
 		ptr.Grow(1)
 		for k, v := range doc {
 			ptr.Property(k)
-			if err := ex.Parse(parent, ptr, v, visit); err != nil {
+			if err := ex.extractor.Parse(parent, ptr, v, visit); err != nil {
 				return err
 			}
 			ptr.Pop()
