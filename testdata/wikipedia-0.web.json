@@ -1,0 +1,12 @@
+{
+    "https://en.wikipedia.org/w/api.php?action=query&titles=Main%20Page&prop=revisions|info&rvprop=user&rvlimit=10&format=json&formatversion=2": {
+        "/query/pages": [
+            {
+                "/title": "title",
+                "/revisions": [
+                    {"/user": "user"}
+                ]
+            }
+        ]
+    }
+}
