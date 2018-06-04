@@ -14,6 +14,9 @@ type Context struct {
 }
 
 func (ctx *Context) Values() map[string]interface{} {
+	if ctx == nil {
+		return nil
+	}
 	if ctx.values == nil { // This should not happen
 		return ctx.parent.Values()
 	}
