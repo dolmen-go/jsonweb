@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/dolmen-go/jsonptr"
+	"github.com/dolmen-go/jsonptrerror"
 )
 
 type Context struct {
@@ -49,6 +50,24 @@ func (e ContextVisitorError) Error() string {
 // The pointer is reused between calls, so it must be .Copy()ed if you need to keep it
 // beyond the duraction of the visit call.
 type ContextVisitor func(ptr jsonptr.Pointer, ctx *Context) error
+
+// Extractor allows to extract hierarchical points of interest in a JSON document.
+type Extractor struct {
+	extractor
+}
+
+func (ex *Extractor) UnmarshalJSON(b []byte) error {
+	var x interface{}
+	if err := jsonptrerror.Unmarshal(b, &x); err != nil {
+		return err
+	}
+	ext, err := buildExtractor("", x)
+	if err != nil {
+		return err
+	}
+	ex.extractor = ext
+	return nil
+}
 
 type extractor interface {
 	Parse(parent *Context, ptr jsonptr.Pointer, doc interface{}, visit ContextVisitor) error
