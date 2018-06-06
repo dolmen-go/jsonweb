@@ -14,8 +14,8 @@ func Example() {
 	if err != nil {
 		panic(err)
 	}
-	var browser *jsonweb.Browser
 	dec := json.NewDecoder(r)
+	var browser jsonweb.Browser
 	if err = dec.Decode(&browser); err != nil {
 		panic(err)
 	}
