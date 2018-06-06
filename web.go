@@ -1,6 +1,7 @@
 package jsonweb
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,13 +11,14 @@ import (
 )
 
 type templated struct {
-	uri       *uritemplates.UriTemplate
-	extractor extractor
+	raw string
+	uri *uritemplates.UriTemplate
 }
 
-type Web struct {
-	roots     map[string]extractor
-	templates map[string]map[string]*templated // URL templates grouped by groups of variables
+type Browser struct {
+	m         Map
+	roots     map[string]struct{}
+	templates map[string]map[string]*uritemplates.UriTemplate // URI templates grouped by groups of variables
 }
 
 type BuildError struct {
@@ -28,57 +30,68 @@ func (e *BuildError) Error() string {
 	return fmt.Sprintf("%q: %v", e.Ptr, e.Err)
 }
 
-func New(m map[string]interface{}) (*Web, error) {
-	var web Web
-	for k, v := range m {
-		ptr := "/" + jsonptr.EscapeString(k)
+func NewBrowser(m Map) (*Browser, error) {
+	browser := Browser{m: m}
+	for k := range m {
 		u, err := uritemplates.Parse(k)
 		if err != nil {
-			return nil, &BuildError{ptr, err}
-		}
-		ex, err := buildExtractor(ptr, v)
-		if err != (*ExtractorError)(nil) { // This cast is necessary
-			return nil, err
+			return nil, &BuildError{"/" + jsonptr.EscapeString(k), err}
 		}
 		vars := u.Names()
 		if len(vars) == 0 {
-			if web.roots == nil {
-				web.roots = make(map[string]extractor)
+			if browser.roots == nil {
+				browser.roots = make(map[string]struct{})
 			}
-			web.roots[k] = ex
+			browser.roots[k] = struct{}{}
 		} else {
-			if web.templates == nil {
-				web.templates = make(map[string]map[string]*templated)
+			if browser.templates == nil {
+				browser.templates = make(map[string]map[string]*uritemplates.UriTemplate)
 			}
 			sort.Strings(vars)
 			key := strings.Join(vars, ",")
-			g := web.templates[key]
+			g := browser.templates[key]
 			if g == nil {
-				g = make(map[string]*templated)
-				web.templates[key] = g
+				g = make(map[string]*uritemplates.UriTemplate)
+				browser.templates[key] = g
 			}
-			g[k] = &templated{u, ex}
+			g[key] = u
 		}
 	}
-	return &web, nil
+	return &browser, nil
 }
 
-func (web *Web) Roots() []string {
+func (browser *Browser) UnmarshalJSON(b []byte) error {
+	var m Map
+	if err := m.UnmarshalJSON(b); err != nil {
+		return err
+	}
+	newBrowser, err := NewBrowser(m)
+	if err != nil {
+		return err
+	}
+	*browser = *newBrowser
+	return nil
+}
+
+func (browser *Browser) MarshalJSON() ([]byte, error) {
+	return json.Marshal(browser.m)
+}
+
+func (browser *Browser) Roots() []string {
 	var roots []string
-	for r := range web.roots {
+	for r := range browser.roots {
 		roots = append(roots, r)
 	}
 	return roots
 }
 
-func (web *Web) WithVars(names []string) []*uritemplates.UriTemplate {
+func (browser *Browser) WithVars(names []string) []*uritemplates.UriTemplate {
 	if len(names) == 0 { // Just for consistency
-		roots := web.Roots()
-		if roots == nil {
+		if len(browser.roots) == 0 {
 			return nil
 		}
-		res := make([]*uritemplates.UriTemplate, 0, len(roots))
-		for _, u := range web.Roots() {
+		res := make([]*uritemplates.UriTemplate, 0, len(browser.roots))
+		for u := range browser.roots {
 			tmpl, _ := uritemplates.Parse(u)
 			res = append(res, tmpl)
 		}
@@ -90,17 +103,17 @@ func (web *Web) WithVars(names []string) []*uritemplates.UriTemplate {
 		sort.Strings(names)
 	}
 	key := strings.Join(names, ",")
-	g := web.templates[key]
+	g := browser.templates[key]
 	if g == nil {
 		return nil
 	}
 	res := make([]*uritemplates.UriTemplate, 0, len(g))
 	for _, v := range g {
-		res = append(res, v.uri)
+		res = append(res, v)
 	}
 	return res
 }
 
-func (web *Web) Parse(url string, doc interface{}, visit ContextVisitor) error {
-	return web.roots[url].Parse((*Context)(nil), jsonptr.Pointer(nil), doc, visit)
+func (browser *Browser) Parse(url string, doc interface{}, visit ContextVisitor) error {
+	return browser.m.Parse(url, doc, visit)
 }
