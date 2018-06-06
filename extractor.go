@@ -11,7 +11,22 @@ import (
 
 type Context struct {
 	parent *Context
+	ptr    jsonptr.Pointer
 	values map[string]interface{}
+}
+
+// Parent returns the parent context.
+//
+// The root context is nil.
+func (ctx *Context) Parent() *Context {
+	return ctx.parent
+}
+
+func (ctx *Context) Pointer() jsonptr.Pointer {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.ptr
 }
 
 func (ctx *Context) Values() map[string]interface{} {
@@ -146,7 +161,7 @@ func (ex *objExtractor) Parse(parent *Context, ptr jsonptr.Pointer, doc interfac
 			continue
 		}
 		if ctx == nil {
-			ctx = &Context{parent: parent, values: make(map[string]interface{})}
+			ctx = &Context{parent: parent, ptr: ptr, values: make(map[string]interface{})}
 		}
 		ctx.values[name] = v
 	}
